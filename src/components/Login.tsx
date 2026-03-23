@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { ShieldAlert, Terminal, Lock } from 'lucide-react';
 
-const HASH = "e2667d61d7936e8ba44ce999e3f45d0381fa058e56feb00797268ced86bc2a22";
+const HASH = "b5ebb77df661ee12c02efdf5d9b639c10bfb20c44a2a0a151a0dbcf500db5498";
 
 async function sha256(message: string) {
   const msgBuffer = new TextEncoder().encode(message);
