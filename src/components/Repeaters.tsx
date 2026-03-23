@@ -2,27 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { TowerControl as Tower, Plus, Search, MapPin, Radio, Activity } from 'lucide-react';
 import { Repeater } from '../types';
-
-const SEED_REPEATERS: Repeater[] = [
-  { id: '1', loc: 'R0 GANEKOGORTA', rx: '145.600', tx: '145.000', off: '-0.600', t: '123.0' },
-  { id: '2', loc: 'R1 SOLLUBE', rx: '145.625', tx: '145.025', off: '-0.600', t: 'NONE' },
-  { id: '3', loc: 'R2 LA GARBEA', rx: '145.650', tx: '145.050', off: '-0.600', t: '123.0' },
-  { id: '4', loc: 'R3 PAGASARRI', rx: '145.675', tx: '145.075', off: '-0.600', t: '82.5' },
-  { id: '5', loc: 'R4 VALLE DE MENA', rx: '145.700', tx: '145.100', off: '-0.600', t: '123.0' },
-  { id: '6', loc: 'R5 EIBAR', rx: '145.725', tx: '145.125', off: '-0.600', t: '77.0' },
-  { id: '7', loc: 'R6 MONTE OIZ', rx: '145.750', tx: '145.150', off: '-0.600', t: '82.5' },
-  { id: '8', loc: 'R7 KARRANTZA', rx: '145.775', tx: '145.175', off: '-0.600', t: '123.0' },
-  { id: '9', loc: 'U78 PAGASARRI', rx: '438.850', tx: '431.250', off: '-7.600', t: '123.0' },
-  { id: '10', loc: 'U82 GANEKOGORTA', rx: '438.950', tx: '431.350', off: '-7.600', t: '123.0' },
-  { id: '11', loc: 'U84 OIZ UHF', rx: '439.000', tx: '431.400', off: '-7.600', t: '82.5' },
-  { id: '12', loc: 'U86 SOLLUBE UHF', rx: '439.050', tx: '431.450', off: '-7.600', t: '123.0' },
-  { id: '13', loc: 'ED2ZAA DMR BILBAO', rx: '438.225', tx: '430.625', off: '-7.600', t: 'CC 1' },
-  { id: '14', loc: 'ED2ZAB DMR SOLLUBE', rx: '438.525', tx: '430.925', off: '-7.600', t: 'CC 1' }
-];
+import { fetchTable } from '../services/supabase';
+import { SEED_DATA } from '../services/seedData';
 
 export default function Repeaters() {
-  const [repeaters, setRepeaters] = useState<Repeater[]>(SEED_REPEATERS);
+  const [repeaters, setRepeaters] = useState<Repeater[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    try {
+      setLoading(true);
+      const data = await fetchTable('db_repeaters');
+      setRepeaters(data || SEED_DATA.repeaters);
+    } catch (error) {
+      console.error('Error fetching repeaters:', error);
+      setRepeaters(SEED_DATA.repeaters);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const filtered = repeaters.filter(r => 
     r.loc.toLowerCase().includes(search.toLowerCase()) ||

@@ -1,24 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Music, Plus, Search, Radio, Signal } from 'lucide-react';
 import { FMStation } from '../types';
-
-const SEED_FM: FMStation[] = [
-  { id: '1', e: 'Radio Nervión', f: '88.0', z: 'Bilbao', s: 'MAX' },
-  { id: '2', e: 'Los 40 Classic', f: '88.5', z: 'Bilbao', s: 'ALTA' },
-  { id: '3', e: 'Los 40 Bilbao', f: '89.5', z: 'Bilbao', s: 'ALTA' },
-  { id: '4', e: 'Radio 3 RNE', f: '90.3', z: 'Bizkaia', s: 'ALTA' },
-  { id: '5', e: 'Radio Euskadi', f: '91.7', z: 'Bizkaia', s: 'MAX' },
-  { id: '6', e: 'Radio 7', f: '92.7', z: 'Barakaldo', s: 'ALTA' },
-  { id: '7', e: 'Rock FM', f: '93.6', z: 'Bilbao', s: 'ALTA' },
-  { id: '8', e: 'Kiss FM', f: '95.2', z: 'Bilbao', s: 'MEDIA' },
-  { id: '9', e: 'Cadena SER', f: '96.5', z: 'Bilbao', s: 'ALTA' },
-  { id: '10', e: 'Euskadi Gaztea', f: '97.2', z: 'Bizkaia', s: 'ALTA' }
-];
+import { fetchTable } from '../services/supabase';
+import { SEED_DATA } from '../services/seedData';
 
 export default function FMStations() {
-  const [stations, setStations] = useState<FMStation[]>(SEED_FM);
+  const [stations, setStations] = useState<FMStation[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    try {
+      setLoading(true);
+      const data = await fetchTable('db_fm');
+      setStations(data || SEED_DATA.fm);
+    } catch (error) {
+      console.error('Error fetching FM:', error);
+      setStations(SEED_DATA.fm);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const filtered = stations.filter(s => 
     s.e.toLowerCase().includes(search.toLowerCase()) ||

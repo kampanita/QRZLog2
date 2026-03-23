@@ -1,16 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Mic, Plus, Search, Radio, Activity } from 'lucide-react';
 import { PMRChannel } from '../types';
-
-const SEED_PMR: PMRChannel[] = Array.from({ length: 16 }, (_, i) => {
-  const freqs = ['446.00625', '446.01875', '446.03125', '446.04375', '446.05625', '446.06875', '446.08125', '446.09375', '446.10625', '446.11875', '446.13125', '446.14375', '446.15625', '446.16875', '446.18125', '446.19375'];
-  return { id: (i + 1).toString(), c: (i + 1).toString(), f: freqs[i], m: 'NFM', p: i === 7 ? 'MID' : 'LOW', u: i === 7 ? 'EMERGENCIA' : 'Uso Libre' };
-});
+import { fetchTable } from '../services/supabase';
+import { SEED_DATA } from '../services/seedData';
 
 export default function PMRChannels() {
-  const [channels, setChannels] = useState<PMRChannel[]>(SEED_PMR);
+  const [channels, setChannels] = useState<PMRChannel[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    try {
+      setLoading(true);
+      const data = await fetchTable('db_pmr');
+      setChannels(data || SEED_DATA.pmr);
+    } catch (error) {
+      console.error('Error fetching PMR:', error);
+      setChannels(SEED_DATA.pmr);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const filtered = channels.filter(c => 
     c.c.includes(search) ||

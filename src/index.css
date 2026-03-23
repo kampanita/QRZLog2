@@ -11,36 +11,77 @@
   --color-surface: #0f1419;
 }
 
-:root {
+/* Theme Definitions */
+[data-theme="terminal2026"] {
   --bg-app: #0f1419;
   --accent: #acc7ff;
   --accent-glow: rgba(172, 199, 255, 0.2);
 }
 
-/* Theme Overrides */
 [data-theme="shack"] {
   --bg-app: #451a03;
   --accent: #d97706;
+  --accent-glow: rgba(217, 119, 6, 0.2);
 }
 
 [data-theme="lab"] {
   --bg-app: #020617;
   --accent: #38bdf8;
+  --accent-glow: rgba(56, 189, 248, 0.3);
 }
 
 [data-theme="retro"] {
   --bg-app: #050505;
   --accent: #22c55e;
+  --accent-glow: rgba(34, 197, 94, 0.2);
 }
 
 [data-theme="cyber"] {
   --bg-app: #050510;
   --accent: #ff00ff;
+  --accent-glow: rgba(255, 0, 255, 0.2);
 }
 
 [data-theme="blueprint"] {
   --bg-app: #0a192f;
   --accent: #64ffda;
+  --accent-glow: rgba(100, 255, 218, 0.1);
+}
+
+[data-theme="tactical"] {
+  --bg-app: #1e293b;
+  --accent: #0ea5e9;
+  --accent-glow: rgba(14, 165, 233, 0.2);
+}
+
+[data-theme="nordic"] {
+  --bg-app: #eceff4;
+  --accent: #5e81ac;
+  --accent-glow: rgba(94, 129, 172, 0.2);
+}
+
+[data-theme="vulcan"] {
+  --bg-app: #1a1a1a;
+  --accent: #ff5722;
+  --accent-glow: rgba(255, 87, 34, 0.2);
+}
+
+[data-theme="forest"] {
+  --bg-app: #061e0e;
+  --accent: #22c55e;
+  --accent-glow: rgba(34, 197, 94, 0.2);
+}
+
+[data-theme="stealth"] {
+  --bg-app: #121212;
+  --accent: #ffffff;
+  --accent-glow: rgba(255, 255, 255, 0.05);
+}
+
+:root {
+  --bg-app: #0f1419;
+  --accent: #acc7ff;
+  --accent-glow: rgba(172, 199, 255, 0.2);
 }
 
 body {

@@ -1,24 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Cpu, Plus, Search, Zap, Activity } from 'lucide-react';
 import { HardwareRange } from '../types';
-
-const SEED_HARDWARE: HardwareRange[] = [
-  { id: '1', r: '65.0 - 108.0', s: 'FM Comercial', u: 'Radiodifusión FM (WFM)', m: 'WFM', tx: 'RX' },
-  { id: '2', r: '108.0 - 117.9', s: 'Banda Aérea', u: 'VOR / Navegación (Solo Balizas)', m: 'AM', tx: 'RX' },
-  { id: '3', r: '118.0 - 136.9', s: 'Banda Aérea', u: 'Comunicaciones Voz Aérea (AM)', m: 'AM', tx: 'RX' },
-  { id: '4', r: '144.0 - 144.150', s: '2M Amateur', u: 'CW (Telegrafía) - Uso Exclusivo', m: 'CW', tx: 'TX OK' },
-  { id: '5', r: '144.150 - 144.4', s: '2M Amateur', u: 'SSB (Banda Lateral) / DX', m: 'USB', tx: 'TX OK' },
-  { id: '6', r: '144.5 - 144.9', s: '2M Amateur', u: 'Todos los Modos / Digital / SSTV', m: 'FM', tx: 'TX OK' },
-  { id: '7', r: '145.0 - 145.175', s: '2M Amateur', u: 'Entrada Repetidores (R0-R7)', m: 'FM', tx: 'TX OK' },
-  { id: '8', r: '145.2 - 145.575', s: '2M Amateur', u: 'FM Simplex (145.500 Llamada)', m: 'FM', tx: 'TX OK' },
-  { id: '9', r: '145.6 - 145.775', s: '2M Amateur', u: 'Salida Repetidores (R0-R7)', m: 'FM', tx: 'TX OK' },
-  { id: '10', r: '145.8 - 146.0', s: '2M Amateur', u: 'Satélites (ISS Downlink)', m: 'FM', tx: 'TX OK' }
-];
+import { fetchTable } from '../services/supabase';
+import { SEED_DATA } from '../services/seedData';
 
 export default function Hardware() {
-  const [ranges, setRanges] = useState<HardwareRange[]>(SEED_HARDWARE);
+  const [ranges, setRanges] = useState<HardwareRange[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    try {
+      setLoading(true);
+      const data = await fetchTable('db_hardware');
+      setRanges(data || SEED_DATA.hardware);
+    } catch (error) {
+      console.error('Error fetching Hardware:', error);
+      setRanges(SEED_DATA.hardware);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const filtered = ranges.filter(r => 
     r.s.toLowerCase().includes(search.toLowerCase()) ||

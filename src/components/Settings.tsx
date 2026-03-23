@@ -11,15 +11,23 @@ import {
   Cloud, 
   FileJson,
   Key,
-  Monitor
+  Monitor,
+  HardDrive,
+  Code
 } from 'lucide-react';
 import { Theme, InterfaceMode } from '../types';
+import { uploadSeedData } from '../services/supabase';
+import { SEED_DATA } from '../services/seedData';
+
+const SB_URL = 'https://svcakitmimdhltwcmadd.supabase.co';
+const SB_KEY = 'sb_publishable_uR_yVZpJ2wOkUD0bihyGBg_E__lJACJ';
 
 export default function Settings() {
-  const [theme, setTheme] = useState<Theme>((localStorage.getItem('app-theme') as Theme) || 'blueprint');
+  const [theme, setTheme] = useState<Theme>((localStorage.getItem('app-theme') as Theme) || 'terminal2026');
   const [interfaceMode, setInterfaceMode] = useState<InterfaceMode>((localStorage.getItem('app-interface') as InterfaceMode) || 'ultra');
-  const [sbUrl, setSbUrl] = useState(localStorage.getItem('sb_url') || 'https://svcakitmimdhltwcmadd.supabase.co');
-  const [sbKey, setSbKey] = useState(localStorage.getItem('sb_key') || '');
+  const [sbUrl, setSbUrl] = useState(localStorage.getItem('sb_url') || SB_URL);
+  const [sbKey, setSbKey] = useState(localStorage.getItem('sb_key') || SB_KEY);
+  const [showSql, setShowSql] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -37,7 +45,22 @@ export default function Settings() {
     alert('Configuración guardada. Reinicia la aplicación para aplicar los cambios.');
   }
 
+  async function handleSeedData() {
+    if (!confirm('Esto subirá los datos base (Repetidores, PMR, FM, etc.) a Supabase. ¿Continuar?')) return;
+    try {
+      await uploadSeedData('db_repeaters', SEED_DATA.repeaters);
+      await uploadSeedData('db_pmr', SEED_DATA.pmr);
+      await uploadSeedData('db_emerg', SEED_DATA.emerg);
+      await uploadSeedData('db_fm', SEED_DATA.fm);
+      await uploadSeedData('db_hardware', SEED_DATA.hardware);
+      alert('Datos base subidos correctamente.');
+    } catch (error: any) {
+      alert('Error subiendo datos: ' + error.message);
+    }
+  }
+
   const THEMES: { id: Theme; label: string; color: string }[] = [
+    { id: 'terminal2026', label: 'Ultra 2026', color: 'bg-indigo-400' },
     { id: 'blueprint', label: 'Blueprint', color: 'bg-cyan-500' },
     { id: 'tactical', label: 'Tactical Blue', color: 'bg-slate-500' },
     { id: 'shack', label: 'Vintage Shack', color: 'bg-amber-700' },
@@ -50,12 +73,55 @@ export default function Settings() {
     { id: 'stealth', label: 'Stealth Ops', color: 'bg-slate-900' },
   ];
 
+  const SQL_COMMANDS = `
+-- TABLA REPETIDORES
+create table if not exists db_repeaters (
+  id text primary key,
+  loc text, rx text, tx text, off text, t text
+);
+
+-- TABLA PMR
+create table if not exists db_pmr (
+  id text primary key,
+  c text, f text, m text, p text, u text
+);
+
+-- TABLA EMERG/AIRE
+create table if not exists db_emerg (
+  id text primary key,
+  s text, f text, m text, n text, tx text, type text
+);
+
+-- TABLA FM
+create table if not exists db_fm (
+  id text primary key,
+  e text, f text, z text, s text
+);
+
+-- TABLA HARDWARE
+create table if not exists db_hardware (
+  id text primary key,
+  r text, s text, u text, m text, tx text
+);
+
+-- TABLA CONTEST LOGS
+create table if not exists contest_logs (
+  id uuid primary key default gen_random_uuid(),
+  contest_id text not null,
+  date text, time text, callsign text not null,
+  band text, s_rst text, s_nr text,
+  r_rst text, r_nr text, r_loc text,
+  my_call text, my_loc text,
+  created_at timestamptz default now()
+);
+  `.trim();
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      className="max-w-4xl mx-auto space-y-8 pb-24 px-6"
+      className="max-w-4xl mx-auto space-y-8 pb-32 px-6"
     >
       <div className="pt-4">
         <h1 className="text-4xl font-display font-medium tracking-tight text-white italic">
@@ -104,7 +170,7 @@ export default function Settings() {
           <Palette className="text-accent" size={20} />
           <h2 className="text-xl font-display text-white uppercase tracking-tight">Personalización Visual</h2>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {THEMES.map((t) => (
             <button
               key={t.id}
@@ -161,30 +227,76 @@ export default function Settings() {
         </div>
       </section>
 
-      {/* Account & System */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="glass-panel p-6 space-y-4">
-          <div className="flex items-center gap-3 mb-2">
-            <Shield className="text-accent" size={20} />
-            <h3 className="font-display text-white uppercase tracking-tight">Seguridad</h3>
-          </div>
-          <button className="w-full flex items-center justify-between p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all group">
-            <span className="text-xs font-mono uppercase tracking-widest text-muted group-hover:text-white">Cambiar Contraseña Terminal</span>
-            <Key size={16} className="text-muted" />
-          </button>
+      {/* Maintenance & Seed Data & Export */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-3">
+          <RefreshCw className="text-accent" size={20} />
+          <h2 className="text-xl font-display text-white uppercase tracking-tight">Servicios de Datos</h2>
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="glass-panel p-6 space-y-4 border-t-2 border-amber-500/50">
+            <div className="flex items-center gap-3">
+              <HardDrive className="text-amber-500" size={18} />
+              <h3 className="font-display text-white uppercase tracking-tight text-sm">Base de Datos</h3>
+            </div>
+            <p className="text-[10px] text-muted font-mono leading-relaxed">
+              Carga los datos iniciales (Repetidores, PMR, etc.) si tu base de datos está vacía.
+            </p>
+            <button 
+              onClick={handleSeedData}
+              className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 py-3 rounded-xl font-mono text-[10px] uppercase tracking-widest hover:bg-amber-500/20 transition-all font-bold"
+            >
+              Fusionar Datos Semilla
+            </button>
+          </div>
 
-        <div className="glass-panel p-6 space-y-4">
-          <div className="flex items-center gap-3 mb-2">
-            <RefreshCw className="text-accent" size={20} />
-            <h3 className="font-display text-white uppercase tracking-tight">Sincronización</h3>
+          <div className="glass-panel p-6 space-y-4 border-t-2 border-emerald-500/50">
+            <div className="flex items-center gap-3">
+              <FileJson className="text-emerald-500" size={18} />
+              <h3 className="font-display text-white uppercase tracking-tight text-sm">Exportar H8 CSV</h3>
+            </div>
+            <p className="text-[10px] text-muted font-mono leading-relaxed">
+              Exporta todos los logs en formato compatible con Tidradio H8 / CSV.
+            </p>
+            <button 
+              onClick={() => alert('Exportación iniciada...')}
+              className="w-full bg-emerald-500 text-slate-950 py-3 rounded-xl font-display font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-900/20"
+            >
+              Descargar MASTER_H8.csv
+            </button>
           </div>
-          <button className="w-full flex items-center justify-between p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all group">
-            <span className="text-xs font-mono uppercase tracking-widest text-muted group-hover:text-white">Forzar Sincronización Nube</span>
-            <Cloud size={16} className="text-muted" />
-          </button>
+
+          <div className="glass-panel p-6 space-y-4 border-t-2 border-slate-500/50">
+            <div className="flex items-center gap-3">
+              <Code className="text-slate-400" size={18} />
+              <h3 className="font-display text-white uppercase tracking-tight text-sm">Instalación SQL</h3>
+            </div>
+            <p className="text-[10px] text-muted font-mono leading-relaxed">
+              Comandos SQL para inicializar las tablas necesarias en Supabase.
+            </p>
+            <button 
+              onClick={() => setShowSql(!showSql)}
+              className="w-full bg-white/5 text-white border border-white/10 py-3 rounded-xl font-mono text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all font-bold"
+            >
+              {showSql ? 'Ocultar Comandos' : 'Ver Comandos SQL'}
+            </button>
+          </div>
         </div>
-      </div>
+        
+        {showSql && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="glass-panel p-6"
+          >
+            <textarea 
+              readOnly 
+              value={SQL_COMMANDS}
+              className="w-full h-48 bg-slate-900/50 text-emerald-400 font-mono text-[10px] p-4 rounded-xl border border-white/10 focus:outline-none"
+            />
+          </motion.div>
+        )}
+      </section>
 
       <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -203,3 +315,4 @@ export default function Settings() {
     </motion.div>
   );
 }
+

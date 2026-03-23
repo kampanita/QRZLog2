@@ -70,5 +70,5 @@ export interface HardwareRange {
   tx: string;
 }
 
-export type Theme = 'tactical' | 'shack' | 'lab' | 'retro' | 'nordic' | 'vulcan' | 'blueprint' | 'forest' | 'cyber' | 'stealth';
+export type Theme = 'terminal2026' | 'tactical' | 'shack' | 'lab' | 'retro' | 'nordic' | 'vulcan' | 'blueprint' | 'forest' | 'cyber' | 'stealth';
 export type InterfaceMode = 'classic' | 'ultra';

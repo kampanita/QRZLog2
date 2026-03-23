@@ -1,23 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { LifeBuoy, Plus, Search, Plane, AlertTriangle, Radio } from 'lucide-react';
 import { EmergencyFreq } from '../types';
-
-const SEED_EMERG: EmergencyFreq[] = [
-  { id: '1', s: 'Salvamento Marítimo', f: '156.800', m: 'FM', n: 'Canal 16 Náutico Internacional', tx: 'RX ONLY', type: 'EMERG' },
-  { id: '2', s: 'REM (Montaña)', f: '146.175', m: 'FM', n: 'Red Emergencia Montaña - Auxilio', tx: 'RX ONLY', type: 'EMERG' },
-  { id: '3', s: 'Prot. Civil Basauri', f: '152.325', m: 'FM', n: 'Coordinación Local Protección Civil', tx: 'RX ONLY', type: 'EMERG' },
-  { id: '4', s: 'Cruz Roja Euskadi', f: '164.308', m: 'FM', n: 'Operativos Cruz Roja', tx: 'RX ONLY', type: 'EMERG' },
-  { id: '5', s: 'Emergencias Bizkaia', f: '146.508', m: 'FM', n: 'QAP Local - Coordinación Emergencias', tx: 'RX ONLY', type: 'EMERG' },
-  { id: '6', s: 'Bomberos Bizkaia', f: '169.5125', m: 'FM', n: 'Consorcio Bomberos - Operativa Principal', tx: 'RX ONLY', type: 'EMERG' },
-  { id: '7', s: 'LEBB Loiu APP', f: '120.700', m: 'AM', n: 'Aproximación', tx: 'RX ONLY', type: 'AIR' },
-  { id: '8', s: 'LEBB Loiu Torre', f: '118.500', m: 'AM', n: 'Torre Control', tx: 'RX ONLY', type: 'AIR' },
-  { id: '9', s: 'LEBB Loiu Tierra', f: '121.700', m: 'AM', n: 'Rodadura', tx: 'RX ONLY', type: 'AIR' }
-];
+import { fetchTable } from '../services/supabase';
+import { SEED_DATA } from '../services/seedData';
 
 export default function Emergencies() {
-  const [freqs, setFreqs] = useState<EmergencyFreq[]>(SEED_EMERG);
+  const [freqs, setFreqs] = useState<EmergencyFreq[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    try {
+      setLoading(true);
+      const data = await fetchTable('db_emerg');
+      setFreqs(data || SEED_DATA.emerg);
+    } catch (error) {
+      console.error('Error fetching Emergencies:', error);
+      setFreqs(SEED_DATA.emerg);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const filtered = freqs.filter(f => 
     f.s.toLowerCase().includes(search.toLowerCase()) ||
