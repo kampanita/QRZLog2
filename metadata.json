@@ -1,0 +1,5 @@
+{
+  "name": "QRZLog",
+  "description": "Professional Amateur Radio Logging Application with real-time signal tracking and DXCC integration.",
+  "requestFramePermissions": []
+}
