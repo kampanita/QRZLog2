@@ -39,16 +39,9 @@ export async function fetchTable(tableName: string) {
 }
 
 export async function saveToTable(tableName: string, item: any) {
-  const { id, ...data } = item;
-  if (id && !id.startsWith('local_') && !id.startsWith('id-')) {
-    const { error } = await supabase.from(tableName).update(data).eq('id', id);
-    if (error) throw error;
-    return item;
-  } else {
-    const { data: inserted, error } = await supabase.from(tableName).insert([data]).select();
-    if (error) throw error;
-    return inserted[0];
-  }
+  const { data: upserted, error } = await supabase.from(tableName).upsert([item]).select();
+  if (error) throw error;
+  return upserted ? upserted[0] : item;
 }
 
 export async function deleteFromTable(tableName: string, id: string) {

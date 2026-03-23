@@ -1,22 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Save, Clock, Radio, Antenna, Search, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Save, Clock, Radio, Antenna, Search, Loader2, X } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { saveLog } from '../services/supabase';
 import { searchQRZ } from '../services/qrz';
 import { QSO } from '../types';
 
 export default function NewQSO() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const editLog = (location.state as any)?.editLog as QSO | undefined;
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const [history, setHistory] = useState<QSO[]>([]);
-  
+
   const [formData, setFormData] = useState({
-    callsign: '',
-    rst: '59',
-    band: '2m VHF (FM)',
-    comment: '',
+    callsign: editLog?.callsign || '',
+    rst: editLog?.rst || '59',
+    band: editLog?.band || '2m VHF (FM)',
+    comment: editLog?.comment || '',
   });
 
   useEffect(() => {
@@ -52,7 +54,8 @@ export default function NewQSO() {
     try {
       const newLog = {
         ...formData,
-        created_at: new Date().toISOString(),
+        ...(editLog ? { id: editLog.id } : {}),
+        created_at: editLog?.created_at || new Date().toISOString(),
       };
       await saveLog(newLog);
       navigate('/logs');
@@ -73,11 +76,19 @@ export default function NewQSO() {
     >
       <div className="px-6 pt-4">
         <h1 className="text-4xl font-display font-medium tracking-tight text-white italic">
-          New <span className="text-accent">QSO Entry</span>
+          {editLog ? 'Edit' : 'New'} <span className="text-accent">QSO Entry</span>
         </h1>
         <p className="text-muted text-sm font-mono uppercase tracking-widest mt-1">
-          REGISTRO DE CONTACTO EN TIEMPO REAL
+          {editLog ? `EDITANDO ${editLog.callsign}` : 'REGISTRO DE CONTACTO EN TIEMPO REAL'}
         </p>
+        {editLog && (
+          <button
+            onClick={() => navigate('/logs')}
+            className="mt-2 flex items-center gap-2 text-rose-400 text-xs font-mono hover:text-rose-300 transition-colors"
+          >
+            <X size={14} /> CANCELAR EDICIÓN
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-6">
@@ -148,7 +159,7 @@ export default function NewQSO() {
               className="w-full bg-accent text-slate-950 py-5 rounded-xl font-display font-bold text-lg uppercase tracking-widest hover:bg-opacity-90 transition-all shadow-xl shadow-accent/20 flex items-center justify-center gap-3 disabled:opacity-50"
             >
               {loading ? <Loader2 className="animate-spin" size={24} /> : <Save size={24} />}
-              GUARDAR QSO
+              {editLog ? 'ACTUALIZAR QSO' : 'GUARDAR QSO'}
             </button>
           </form>
         </div>

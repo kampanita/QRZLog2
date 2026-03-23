@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -12,8 +12,17 @@ import Emergencies from './components/Emergencies';
 import FMStations from './components/FMStations';
 import Hardware from './components/Hardware';
 import Contest from './components/Contest';
+import Login from './components/Login';
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    sessionStorage.getItem('auth') === 'true'
+  );
+
+  if (!isAuthenticated) {
+    return <Login onLogin={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <Router>
       <Layout>

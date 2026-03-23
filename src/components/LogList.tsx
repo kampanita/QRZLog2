@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Search, History, PlusCircle, Radio, Antenna, Trash2, ExternalLink } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Search, History, PlusCircle, Radio, Antenna, Trash2, ExternalLink, Edit2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { fetchLogs, deleteLog } from '../services/supabase';
 import { QSO } from '../types';
 
@@ -10,6 +10,7 @@ export default function LogList() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadLogs();
@@ -176,6 +177,16 @@ export default function LogList() {
               </div>
 
               <div className="flex items-center gap-2">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate('/new', { state: { editLog: log } });
+                  }}
+                  className="p-3 rounded-lg hover:bg-white/5 text-muted hover:text-accent transition-all"
+                  title="Editar QSO"
+                >
+                  <Edit2 size={18} />
+                </button>
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();

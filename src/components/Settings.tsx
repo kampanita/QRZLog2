@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Database, 
   Palette, 
@@ -13,11 +13,15 @@ import {
   Key,
   Monitor,
   HardDrive,
-  Code
+  Code,
+  Trophy,
+  Trash2,
+  Plus
 } from 'lucide-react';
 import { Theme, InterfaceMode } from '../types';
-import { uploadSeedData } from '../services/supabase';
+import { uploadSeedData, fetchTable, deleteFromTable, saveToTable } from '../services/supabase';
 import { SEED_DATA } from '../services/seedData';
+import Console from './Console';
 
 const SB_URL = 'https://svcakitmimdhltwcmadd.supabase.co';
 const SB_KEY = 'sb_publishable_uR_yVZpJ2wOkUD0bihyGBg_E__lJACJ';
@@ -28,6 +32,8 @@ export default function Settings() {
   const [sbUrl, setSbUrl] = useState(localStorage.getItem('sb_url') || SB_URL);
   const [sbKey, setSbKey] = useState(localStorage.getItem('sb_key') || SB_KEY);
   const [showSql, setShowSql] = useState(false);
+  const [contests, setContests] = useState<any[]>([]);
+  const [newContestName, setNewContestName] = useState('');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -39,24 +45,45 @@ export default function Settings() {
     localStorage.setItem('app-interface', interfaceMode);
   }, [interfaceMode]);
 
+  useEffect(() => {
+    loadContests();
+  }, []);
+
+  async function loadContests() {
+    try {
+      const data = await fetchTable('db_contests');
+      setContests(data || []);
+    } catch (e) {
+      console.error('Error loading contests:', e);
+    }
+  }
+
+  async function handleAddContest() {
+    if (!newContestName) return;
+    try {
+      const id = newContestName.toUpperCase().replace(/\s+/g, '-');
+      await saveToTable('db_contests', { id, name: newContestName, created_at: new Date().toISOString() });
+      setNewContestName('');
+      loadContests();
+    } catch (e) {
+      alert('Error creando concurso');
+    }
+  }
+
+  async function handleDeleteContest(id: string) {
+    if (!confirm('¿Eliminar concurso? (Esto no borrará los logs asociados)')) return;
+    try {
+      await deleteFromTable('db_contests', id);
+      loadContests();
+    } catch (e) {
+      alert('Error eliminando');
+    }
+  }
+
   function handleSaveConfig() {
     localStorage.setItem('sb_url', sbUrl);
     localStorage.setItem('sb_key', sbKey);
     alert('Configuración guardada. Reinicia la aplicación para aplicar los cambios.');
-  }
-
-  async function handleSeedData() {
-    if (!confirm('Esto subirá los datos base (Repetidores, PMR, FM, etc.) a Supabase. ¿Continuar?')) return;
-    try {
-      await uploadSeedData('db_repeaters', SEED_DATA.repeaters);
-      await uploadSeedData('db_pmr', SEED_DATA.pmr);
-      await uploadSeedData('db_emerg', SEED_DATA.emerg);
-      await uploadSeedData('db_fm', SEED_DATA.fm);
-      await uploadSeedData('db_hardware', SEED_DATA.hardware);
-      alert('Datos base subidos correctamente.');
-    } catch (error: any) {
-      alert('Error subiendo datos: ' + error.message);
-    }
   }
 
   const THEMES: { id: Theme; label: string; color: string }[] = [
@@ -68,7 +95,7 @@ export default function Settings() {
     { id: 'retro', label: 'Retro CRT', color: 'bg-emerald-600' },
     { id: 'nordic', label: 'Nordic Frost', color: 'bg-slate-300' },
     { id: 'vulcan', label: 'Vulcan Forge', color: 'bg-orange-600' },
-    { id: 'forest', label: 'Deep Forest', color: 'bg-emerald-800' },
+    { id: 'forest', label: 'Deep Forest', color: 'bg-green-800' },
     { id: 'cyber', label: 'Cyber Neon', color: 'bg-fuchsia-600' },
     { id: 'stealth', label: 'Stealth Ops', color: 'bg-slate-900' },
   ];
@@ -104,6 +131,13 @@ create table if not exists db_hardware (
   r text, s text, u text, m text, tx text
 );
 
+-- TABLA CONCURSOS
+create table if not exists db_contests (
+  id text primary key,
+  name text,
+  created_at timestamptz default now()
+);
+
 -- TABLA CONTEST LOGS
 create table if not exists contest_logs (
   id uuid primary key default gen_random_uuid(),
@@ -132,7 +166,10 @@ create table if not exists contest_logs (
         </p>
       </div>
 
-      {/* Interface Mode */}
+      <div className="grid grid-cols-1 gap-6">
+        <Console />
+      </div>
+
       <section className="space-y-4">
         <div className="flex items-center gap-3">
           <Monitor className="text-accent" size={20} />
@@ -164,7 +201,6 @@ create table if not exists contest_logs (
         </div>
       </section>
 
-      {/* Visual Themes */}
       <section className="space-y-4">
         <div className="flex items-center gap-3">
           <Palette className="text-accent" size={20} />
@@ -188,7 +224,45 @@ create table if not exists contest_logs (
         </div>
       </section>
 
-      {/* Supabase Config */}
+      {/* Contest Management */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Trophy className="text-amber-500" size={20} />
+          <h2 className="text-xl font-display text-white uppercase tracking-tight">Gestión de Concursos</h2>
+        </div>
+        <div className="glass-panel p-8 space-y-6">
+          <div className="flex gap-4">
+            <input 
+              type="text" 
+              placeholder="NOMBRE DEL CONCURSO (EJ: BASAURI PRO)"
+              value={newContestName}
+              onChange={e => setNewContestName(e.target.value)}
+              className="flex-1 bg-slate-900/50 border border-white/10 rounded-xl p-4 text-white font-mono text-sm focus:border-amber-500 outline-none"
+            />
+            <button 
+              onClick={handleAddContest}
+              className="bg-amber-500 text-slate-950 px-6 py-4 rounded-xl font-display font-bold uppercase tracking-widest hover:bg-amber-400 shadow-lg shadow-amber-900/20"
+            >
+              <Plus size={20} />
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[200px] overflow-y-auto scrollbar-hide">
+            {contests.map(c => (
+              <div key={c.id} className="bg-white/5 border border-white/10 p-4 rounded-xl flex justify-between items-center group">
+                <div>
+                  <p className="text-[10px] text-muted font-mono uppercase">{c.id}</p>
+                  <p className="text-white font-display font-bold uppercase">{c.name}</p>
+                </div>
+                <button onClick={() => handleDeleteContest(c.id)} className="text-muted hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="space-y-4">
         <div className="flex items-center gap-3">
           <Database className="text-accent" size={20} />
@@ -211,7 +285,6 @@ create table if not exists contest_logs (
                 type="password"
                 value={sbKey}
                 onChange={(e) => setSbKey(e.target.value)}
-                placeholder="sb_publishable..."
                 className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-4 text-white font-mono text-sm focus:outline-none focus:border-accent"
               />
             </div>
@@ -219,7 +292,7 @@ create table if not exists contest_logs (
           <div className="flex justify-end">
             <button
               onClick={handleSaveConfig}
-              className="bg-accent text-slate-950 px-8 py-3 rounded-xl font-display font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all shadow-lg shadow-accent/20"
+              className="bg-accent text-slate-950 px-8 py-3 rounded-xl font-display font-bold uppercase tracking-widest hover:bg-opacity-90 shadow-lg shadow-accent/20"
             >
               Guardar y Conectar
             </button>
@@ -227,7 +300,6 @@ create table if not exists contest_logs (
         </div>
       </section>
 
-      {/* Maintenance & Seed Data & Export */}
       <section className="space-y-4">
         <div className="flex items-center gap-3">
           <RefreshCw className="text-accent" size={20} />
@@ -235,83 +307,27 @@ create table if not exists contest_logs (
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="glass-panel p-6 space-y-4 border-t-2 border-amber-500/50">
-            <div className="flex items-center gap-3">
-              <HardDrive className="text-amber-500" size={18} />
-              <h3 className="font-display text-white uppercase tracking-tight text-sm">Base de Datos</h3>
-            </div>
-            <p className="text-[10px] text-muted font-mono leading-relaxed">
-              Carga los datos iniciales (Repetidores, PMR, etc.) si tu base de datos está vacía.
-            </p>
-            <button 
-              onClick={handleSeedData}
-              className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 py-3 rounded-xl font-mono text-[10px] uppercase tracking-widest hover:bg-amber-500/20 transition-all font-bold"
-            >
-              Fusionar Datos Semilla
-            </button>
+            <h3 className="font-display text-white uppercase tracking-tight text-sm">Base de Datos</h3>
+            <p className="text-[10px] text-muted font-mono leading-relaxed">Fusiona los datos base si tu DB está vacía.</p>
+            <button onClick={() => uploadSeedData('db_repeaters', SEED_DATA.repeaters)} className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 py-3 rounded-xl font-mono text-[10px] font-bold">FUSIONAR REPETIDORES</button>
           </div>
 
           <div className="glass-panel p-6 space-y-4 border-t-2 border-emerald-500/50">
-            <div className="flex items-center gap-3">
-              <FileJson className="text-emerald-500" size={18} />
-              <h3 className="font-display text-white uppercase tracking-tight text-sm">Exportar H8 CSV</h3>
-            </div>
-            <p className="text-[10px] text-muted font-mono leading-relaxed">
-              Exporta todos los logs en formato compatible con Tidradio H8 / CSV.
-            </p>
-            <button 
-              onClick={() => alert('Exportación iniciada...')}
-              className="w-full bg-emerald-500 text-slate-950 py-3 rounded-xl font-display font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-900/20"
-            >
-              Descargar MASTER_H8.csv
-            </button>
+            <h3 className="font-display text-white uppercase tracking-tight text-sm">Exportar H8 CSV</h3>
+            <button className="w-full bg-emerald-500 text-slate-950 py-3 rounded-xl font-display font-bold text-[10px]">REESTABLECER EXPORTACIÓN</button>
           </div>
 
-          <div className="glass-panel p-6 space-y-4 border-t-2 border-slate-500/50">
-            <div className="flex items-center gap-3">
-              <Code className="text-slate-400" size={18} />
+          <div className="glass-panel p-6 space-y-4 border-t-2 border-slate-500/50 col-span-2">
+            <div className="flex justify-between items-center">
               <h3 className="font-display text-white uppercase tracking-tight text-sm">Instalación SQL</h3>
+              <button onClick={() => setShowSql(!showSql)} className="text-xs font-mono text-accent">{showSql ? 'CERRAR' : 'VER CÓDIGO'}</button>
             </div>
-            <p className="text-[10px] text-muted font-mono leading-relaxed">
-              Comandos SQL para inicializar las tablas necesarias en Supabase.
-            </p>
-            <button 
-              onClick={() => setShowSql(!showSql)}
-              className="w-full bg-white/5 text-white border border-white/10 py-3 rounded-xl font-mono text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all font-bold"
-            >
-              {showSql ? 'Ocultar Comandos' : 'Ver Comandos SQL'}
-            </button>
+            {showSql && (
+              <textarea readOnly value={SQL_COMMANDS} className="w-full h-48 bg-black/40 text-emerald-400 font-mono text-[10px] p-4 rounded-xl border border-white/5" />
+            )}
           </div>
         </div>
-        
-        {showSql && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="glass-panel p-6"
-          >
-            <textarea 
-              readOnly 
-              value={SQL_COMMANDS}
-              className="w-full h-48 bg-slate-900/50 text-emerald-400 font-mono text-[10px] p-4 rounded-xl border border-white/10 focus:outline-none"
-            />
-          </motion.div>
-        )}
       </section>
-
-      <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500">
-            <LogOut size={24} />
-          </div>
-          <div>
-            <p className="text-white font-display font-bold uppercase tracking-tight">Cerrar Sesión</p>
-            <p className="text-[10px] text-muted font-mono uppercase">EA2FKT • Basauri, Bizkaia</p>
-          </div>
-        </div>
-        <button className="text-rose-500 font-mono text-[10px] uppercase tracking-widest border border-rose-500/20 px-6 py-3 rounded-xl hover:bg-rose-500/10 transition-all">
-          Desconectar Terminal
-        </button>
-      </div>
     </motion.div>
   );
 }
