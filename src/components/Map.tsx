@@ -23,10 +23,16 @@ export default function Map() {
     const SOLAR_URL = 'https://www.hamqsl.com/solarxml.php';
     const CACHE_KEY = 'qrzlog_solar_cache';
     const SB_URL = 'https://svcakitmimdhltwcmadd.supabase.co';
+    const SB_KEY = 'sb_publishable_uR_yVZpJ2wOkUD0bihyGBg_E__lJACJ';
 
     // Strategy 1: Supabase Edge Function (returns JSON)
     try {
-      const res = await fetch(`${SB_URL}/functions/v1/solar-proxy`);
+      const res = await fetch(`${SB_URL}/functions/v1/solar-proxy`, {
+        headers: {
+          'Authorization': `Bearer ${SB_KEY}`,
+          'apikey': SB_KEY,
+        },
+      });
       if (res.ok) {
         const json = await res.json();
         const parsed = parseSolarJson(json);
