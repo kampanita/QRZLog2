@@ -93,19 +93,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Mobile Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 glass-panel border-none rounded-none border-t border-white/5 z-50 px-4 py-2 flex justify-around items-center overflow-x-auto scrollbar-hide">
-        {NAV_ITEMS.slice(0, 6).map((item) => (
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 glass-panel border-none rounded-none border-t border-white/5 z-50 px-2 py-2 flex items-center gap-1 overflow-x-auto scrollbar-hide">
+        {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
+              `flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all flex-shrink-0 min-w-[3rem] ${
                 isActive ? 'text-accent' : 'text-muted'
               }`
             }
           >
-            <item.icon size={20} />
-            <span className="text-[8px] font-mono uppercase tracking-widest">{item.label}</span>
+            <item.icon size={18} />
+            <span className="text-[7px] font-mono uppercase tracking-wider whitespace-nowrap">{item.label}</span>
           </NavLink>
         ))}
       </nav>

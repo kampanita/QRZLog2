@@ -22,38 +22,60 @@ export default function Map() {
   async function fetchSolarData() {
     const SOLAR_URL = 'https://www.hamqsl.com/solarxml.php';
     const CACHE_KEY = 'qrzlog_solar_cache';
+    const SB_URL = 'https://svcakitmimdhltwcmadd.supabase.co';
 
-    // Strategy: allorigins /get (JSON wrapper) as primary, try direct /raw as backup
-    const strategies: Array<() => Promise<string | null>> = [
-      // allorigins JSON wrapper — most reliable
-      async () => {
-        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(SOLAR_URL)}`);
-        if (!res.ok) return null;
+    // Strategy 1: Supabase Edge Function (returns JSON)
+    try {
+      const res = await fetch(`${SB_URL}/functions/v1/solar-proxy`);
+      if (res.ok) {
         const json = await res.json();
-        return json?.contents || null;
+        const parsed = parseSolarJson(json);
+        if (parsed) {
+          setSolarData(parsed);
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ ...parsed, ts: Date.now() }));
+          sysLog(`Solar data OK via Edge Function — SFI:${parsed.sfi} SN:${parsed.sn} A:${parsed.a} K:${parsed.k}`, 'success');
+          return;
+        }
+      }
+    } catch (e) {
+      sysLog('Solar Edge Function failed, trying fallbacks...', 'warn');
+    }
+
+    // Fallback XML proxy strategies
+    const xmlStrategies: Array<{ name: string; fn: () => Promise<string | null> }> = [
+      {
+        name: 'allorigins',
+        fn: async () => {
+          const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(SOLAR_URL)}`);
+          if (!res.ok) return null;
+          const json = await res.json();
+          return json?.contents || null;
+        }
       },
-      // corsproxy.io
-      async () => {
-        const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(SOLAR_URL)}`);
-        if (!res.ok) return null;
-        return await res.text();
+      {
+        name: 'corsproxy',
+        fn: async () => {
+          const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(SOLAR_URL)}`);
+          if (!res.ok) return null;
+          return await res.text();
+        }
       },
     ];
 
-    for (const strategy of strategies) {
+    for (const { name, fn } of xmlStrategies) {
       try {
-        const xml = await strategy();
+        const xml = await fn();
         if (!xml || xml.length < 100 || !xml.includes('solardata')) continue;
 
         const parsed = parseSolarXml(xml);
         if (parsed) {
           setSolarData(parsed);
           localStorage.setItem(CACHE_KEY, JSON.stringify({ ...parsed, ts: Date.now() }));
-          sysLog(`Solar data OK — SFI:${parsed.sfi} SN:${parsed.sn} A:${parsed.a} K:${parsed.k}`, 'success');
+          sysLog(`Solar data OK via ${name} — SFI:${parsed.sfi} SN:${parsed.sn} A:${parsed.a} K:${parsed.k}`, 'success');
           return;
         }
       } catch (e) {
-        sysLog('Solar proxy failed, trying next...', 'warn');
+        sysLog(`Solar proxy ${name} failed, trying next...`, 'warn');
       }
     }
 
@@ -72,6 +94,47 @@ export default function Map() {
     } catch {}
 
     sysLog('All solar data sources failed', 'error');
+  }
+
+  function parseSolarJson(json: any) {
+    try {
+      // Navigate the xmlToJson structure: root > solar > solardata
+      const sd = json?.solar?.solardata || json?.solardata || json;
+      if (!sd) return null;
+
+      const val = (key: string) => {
+        const v = sd[key];
+        if (v == null) return '--';
+        return typeof v === 'string' ? v.trim() : String(v);
+      };
+
+      const conditions: {band: string, status: string}[] = [];
+      // Band names in known order from hamqsl.com XML (day first, then night)
+      const dayBands = ['80m-40m', '30m-20m', '17m-15m', '12m-10m'];
+      const bands = sd.calculatedconditions?.band;
+      if (Array.isArray(bands)) {
+        // Day bands are the first 4 entries
+        dayBands.forEach((name, i) => {
+          const status = typeof bands[i] === 'string' ? bands[i].trim() : (bands[i] || 'N/A');
+          conditions.push({ band: name, status: String(status) });
+        });
+      }
+      if (conditions.length === 0) {
+        dayBands.forEach(b => conditions.push({ band: b, status: 'N/A' }));
+      }
+
+      return {
+        sfi: val('solarflux'),
+        sn: val('sunspots'),
+        a: val('aindex'),
+        k: val('kindex'),
+        muf: val('muf') !== '--' ? val('muf') : val('calculatedmuf'),
+        xray: val('xray'),
+        conditions
+      };
+    } catch {
+      return null;
+    }
   }
 
   function parseSolarXml(xml: string) {
