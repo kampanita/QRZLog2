@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import LogList from './components/LogList';
@@ -38,6 +38,7 @@ function App() {
           <Route path="/fm" element={<FMStations />} />
           <Route path="/hardware" element={<Hardware />} />
           <Route path="/contest" element={<Contest />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
     </Router>
