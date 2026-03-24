@@ -21,6 +21,7 @@ import {
 import { Theme, InterfaceMode } from '../types';
 import { uploadSeedData, fetchTable, deleteFromTable, saveToTable } from '../services/supabase';
 import { SEED_DATA } from '../services/seedData';
+import { sysLog } from '../services/syslog';
 import Console from './Console';
 
 const SB_URL = 'https://svcakitmimdhltwcmadd.supabase.co';
@@ -38,11 +39,13 @@ export default function Settings() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('app-theme', theme);
+    sysLog(`Tema: ${theme.toUpperCase()}`, 'info');
   }, [theme]);
 
   useEffect(() => {
     document.body.setAttribute('data-interface', interfaceMode);
     localStorage.setItem('app-interface', interfaceMode);
+    sysLog(`Interfaz: ${interfaceMode.toUpperCase()}`, 'success');
   }, [interfaceMode]);
 
   useEffect(() => {
@@ -53,8 +56,9 @@ export default function Settings() {
     try {
       const data = await fetchTable('db_contests');
       setContests(data || []);
-    } catch (e) {
-      console.error('Error loading contests:', e);
+      sysLog(`Contests loaded: ${data?.length || 0}`, 'info');
+    } catch (e: any) {
+      sysLog(`Error loading contests: ${e.message}`, 'error');
     }
   }
 
@@ -63,9 +67,11 @@ export default function Settings() {
     try {
       const id = newContestName.toUpperCase().replace(/\s+/g, '-');
       await saveToTable('db_contests', { id, name: newContestName, created_at: new Date().toISOString() });
+      sysLog(`Concurso creado: ${id}`, 'success');
       setNewContestName('');
       loadContests();
-    } catch (e) {
+    } catch (e: any) {
+      sysLog(`Error creando concurso: ${e.message}`, 'error');
       alert('Error creando concurso');
     }
   }
@@ -74,8 +80,10 @@ export default function Settings() {
     if (!confirm('¿Eliminar concurso? (Esto no borrará los logs asociados)')) return;
     try {
       await deleteFromTable('db_contests', id);
+      sysLog(`Concurso ${id} eliminado.`, 'warn');
       loadContests();
-    } catch (e) {
+    } catch (e: any) {
+      sysLog(`Error eliminando concurso: ${e.message}`, 'error');
       alert('Error eliminando');
     }
   }
@@ -83,6 +91,7 @@ export default function Settings() {
   function handleSaveConfig() {
     localStorage.setItem('sb_url', sbUrl);
     localStorage.setItem('sb_key', sbKey);
+    sysLog(`Supabase config saved: ${sbUrl}`, 'success');
     alert('Configuración guardada. Reinicia la aplicación para aplicar los cambios.');
   }
 
@@ -310,11 +319,13 @@ create table if not exists contest_logs (
             <h3 className="font-display text-white uppercase tracking-tight text-sm">Base de Datos (Seed)</h3>
             <p className="text-[10px] text-muted font-mono leading-relaxed">Fusiona los datos base. Se usa upsert para evitar duplicados.</p>
             <div className="space-y-2">
-              <button onClick={async () => { try { await uploadSeedData('db_repeaters', SEED_DATA.repeaters); alert('Repetidores OK'); } catch(e:any) { alert(e.message); } }} className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 py-2 rounded-xl font-mono text-[10px] font-bold">FUSIONAR REPETIDORES</button>
-              <button onClick={async () => { try { await uploadSeedData('db_pmr', SEED_DATA.pmr); alert('PMR OK'); } catch(e:any) { alert(e.message); } }} className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 py-2 rounded-xl font-mono text-[10px] font-bold">FUSIONAR PMR</button>
-              <button onClick={async () => { try { await uploadSeedData('db_emerg', SEED_DATA.emerg); alert('Emergencias OK'); } catch(e:any) { alert(e.message); } }} className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 py-2 rounded-xl font-mono text-[10px] font-bold">FUSIONAR EMERGENCIAS</button>
-              <button onClick={async () => { try { await uploadSeedData('db_fm', SEED_DATA.fm); alert('FM OK'); } catch(e:any) { alert(e.message); } }} className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 py-2 rounded-xl font-mono text-[10px] font-bold">FUSIONAR FM</button>
-              <button onClick={async () => { try { await uploadSeedData('db_hardware', SEED_DATA.hardware); alert('Hardware OK'); } catch(e:any) { alert(e.message); } }} className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 py-2 rounded-xl font-mono text-[10px] font-bold">FUSIONAR HARDWARE</button>
+              {(['db_repeaters', 'db_pmr', 'db_emerg', 'db_fm', 'db_hardware'] as const).map(table => {
+                const seedMap: Record<string, any[]> = { db_repeaters: SEED_DATA.repeaters, db_pmr: SEED_DATA.pmr, db_emerg: SEED_DATA.emerg, db_fm: SEED_DATA.fm, db_hardware: SEED_DATA.hardware };
+                const label = table.replace('db_', '').toUpperCase();
+                return (
+                  <button key={table} onClick={async () => { sysLog(`Seeding ${table}...`, 'info'); try { await uploadSeedData(table, seedMap[table]); sysLog(`Seeding OK: ${table}`, 'success'); } catch(e:any) { sysLog(`Seeding Failed ${table}: ${e.message}`, 'error'); } }} className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 py-2 rounded-xl font-mono text-[10px] font-bold">FUSIONAR {label}</button>
+                );
+              })}
             </div>
           </div>
 

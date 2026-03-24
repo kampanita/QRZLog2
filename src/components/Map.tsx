@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import * as THREE from 'three';
 import { MapPin, Globe, Radio, Activity, Sun, Zap, Info, Layers } from 'lucide-react';
 import { fetchLogs } from '../services/supabase';
+import { sysLog } from '../services/syslog';
 
 export default function Map() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -60,12 +61,13 @@ export default function Map() {
           xray: get('xray'),
           conditions
         });
+        sysLog(`Solar data OK — SFI:${get('solarflux')} SN:${get('sunspots')} A:${get('aindex')} K:${get('kindex')}`, 'success');
         return; // success — stop trying proxies
       } catch (e) {
-        console.warn('Solar proxy failed, trying next:', e);
+        sysLog('Solar proxy failed, trying next...', 'warn');
       }
     }
-    console.error('All solar data proxies failed');
+    sysLog('All solar data proxies failed', 'error');
   }
 
   async function loadRecentLogs() {

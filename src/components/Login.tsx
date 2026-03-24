@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { ShieldAlert, Terminal, Lock } from 'lucide-react';
+import { sysLog } from '../services/syslog';
 
 const HASH = "b5ebb77df661ee12c02efdf5d9b639c10bfb20c44a2a0a151a0dbcf500db5498";
 
@@ -29,8 +30,10 @@ export default function Login({ onLogin }: LoginProps) {
       const h = await sha256(password);
       if (h === HASH) {
         sessionStorage.setItem('auth', 'true');
+        sysLog('AUTH: Login successful', 'success');
         onLogin();
       } else {
+        sysLog('AUTH: Access denied — wrong password', 'error');
         setErrorMsg('ACCESO DENEGADO');
         setPassword('');
       }

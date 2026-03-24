@@ -4,6 +4,7 @@ import { Save, Clock, Radio, Antenna, Search, Loader2, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { saveLog, fetchLogs } from '../services/supabase';
 import { searchQRZ } from '../services/qrz';
+import { sysLog } from '../services/syslog';
 import { QSO } from '../types';
 
 export default function NewQSO() {
@@ -68,6 +69,7 @@ export default function NewQSO() {
         created_at: editLog?.created_at || new Date().toISOString(),
       };
       await saveLog(newLog);
+      sysLog(`QSO ${editLog ? 'updated' : 'saved'}: ${formData.callsign}`, 'success');
       navigate('/logs');
     } catch (error) {
       console.error('Error saving log:', error);
