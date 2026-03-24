@@ -19,43 +19,53 @@ export default function Map() {
   }, []);
 
   async function fetchSolarData() {
-    try {
-      const res = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.hamqsl.com/solarxml.php'));
-      const json = await res.json();
-      if (json.contents) {
+    const SOLAR_URL = 'https://www.hamqsl.com/solarxml.php';
+    const proxies = [
+      (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+      (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    ];
+
+    for (const makeUrl of proxies) {
+      try {
+        const res = await fetch(makeUrl(SOLAR_URL));
+        if (!res.ok) continue;
+        const text = await res.text();
+        if (!text || text.length < 100) continue;
+
         const parser = new DOMParser();
-        const doc = parser.parseFromString(json.contents, 'text/xml');
+        const doc = parser.parseFromString(text, 'text/xml');
         const solardata = doc.querySelector('solardata');
-        if (solardata) {
-          const get = (tag: string) => solardata.querySelector(tag)?.textContent || '--';
-          const conditions: {band: string, status: string}[] = [];
+        if (!solardata) continue;
 
-          const bandTags = ['80m-40m', '30m-20m', '17m-15m', '12m-10m', '6m'];
-          const dayNodes = solardata.querySelectorAll('calculatedconditions band[time="day"]');
-          dayNodes.forEach((node) => {
-            const name = node.getAttribute('name') || '';
-            const status = node.textContent || '';
-            if (name && status) conditions.push({ band: name, status });
-          });
+        const get = (tag: string) => solardata.querySelector(tag)?.textContent?.trim() || '--';
+        const conditions: {band: string, status: string}[] = [];
 
-          if (conditions.length === 0) {
-            bandTags.forEach(b => conditions.push({ band: b, status: 'N/A' }));
-          }
+        const dayNodes = solardata.querySelectorAll('calculatedconditions band[time="day"]');
+        dayNodes.forEach((node) => {
+          const name = node.getAttribute('name') || '';
+          const status = node.textContent?.trim() || '';
+          if (name && status) conditions.push({ band: name, status });
+        });
 
-          setSolarData({
-            sfi: get('solarflux'),
-            sn: get('sunspots'),
-            a: get('aindex'),
-            k: get('kindex'),
-            muf: get('muf') || get('calculatedmuf') || '--',
-            xray: get('xray') || '--',
-            conditions
-          });
+        if (conditions.length === 0) {
+          ['80m-40m', '30m-20m', '17m-15m', '12m-10m', '6m-VHF'].forEach(b => conditions.push({ band: b, status: 'N/A' }));
         }
+
+        setSolarData({
+          sfi: get('solarflux'),
+          sn: get('sunspots'),
+          a: get('aindex'),
+          k: get('kindex'),
+          muf: get('muf') !== '--' ? get('muf') : get('calculatedmuf'),
+          xray: get('xray'),
+          conditions
+        });
+        return; // success — stop trying proxies
+      } catch (e) {
+        console.warn('Solar proxy failed, trying next:', e);
       }
-    } catch (e) {
-      console.error('Solar data fetch failed:', e);
     }
+    console.error('All solar data proxies failed');
   }
 
   async function loadRecentLogs() {

@@ -71,6 +71,6 @@ export async function deleteContestLog(id: string) {
 }
 
 export async function uploadSeedData(tableName: string, seed: any[]) {
-  const { error } = await supabase.from(tableName).insert(seed);
+  const { error } = await supabase.from(tableName).upsert(seed, { onConflict: 'id' });
   if (error) throw error;
 }

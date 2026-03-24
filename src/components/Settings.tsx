@@ -307,9 +307,15 @@ create table if not exists contest_logs (
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="glass-panel p-6 space-y-4 border-t-2 border-amber-500/50">
-            <h3 className="font-display text-white uppercase tracking-tight text-sm">Base de Datos</h3>
-            <p className="text-[10px] text-muted font-mono leading-relaxed">Fusiona los datos base si tu DB está vacía.</p>
-            <button onClick={() => uploadSeedData('db_repeaters', SEED_DATA.repeaters)} className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 py-3 rounded-xl font-mono text-[10px] font-bold">FUSIONAR REPETIDORES</button>
+            <h3 className="font-display text-white uppercase tracking-tight text-sm">Base de Datos (Seed)</h3>
+            <p className="text-[10px] text-muted font-mono leading-relaxed">Fusiona los datos base. Se usa upsert para evitar duplicados.</p>
+            <div className="space-y-2">
+              <button onClick={async () => { try { await uploadSeedData('db_repeaters', SEED_DATA.repeaters); alert('Repetidores OK'); } catch(e:any) { alert(e.message); } }} className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 py-2 rounded-xl font-mono text-[10px] font-bold">FUSIONAR REPETIDORES</button>
+              <button onClick={async () => { try { await uploadSeedData('db_pmr', SEED_DATA.pmr); alert('PMR OK'); } catch(e:any) { alert(e.message); } }} className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 py-2 rounded-xl font-mono text-[10px] font-bold">FUSIONAR PMR</button>
+              <button onClick={async () => { try { await uploadSeedData('db_emerg', SEED_DATA.emerg); alert('Emergencias OK'); } catch(e:any) { alert(e.message); } }} className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 py-2 rounded-xl font-mono text-[10px] font-bold">FUSIONAR EMERGENCIAS</button>
+              <button onClick={async () => { try { await uploadSeedData('db_fm', SEED_DATA.fm); alert('FM OK'); } catch(e:any) { alert(e.message); } }} className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 py-2 rounded-xl font-mono text-[10px] font-bold">FUSIONAR FM</button>
+              <button onClick={async () => { try { await uploadSeedData('db_hardware', SEED_DATA.hardware); alert('Hardware OK'); } catch(e:any) { alert(e.message); } }} className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 py-2 rounded-xl font-mono text-[10px] font-bold">FUSIONAR HARDWARE</button>
+            </div>
           </div>
 
           <div className="glass-panel p-6 space-y-4 border-t-2 border-emerald-500/50">

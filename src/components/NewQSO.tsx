@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Save, Clock, Radio, Antenna, Search, Loader2, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { saveLog } from '../services/supabase';
+import { saveLog, fetchLogs } from '../services/supabase';
 import { searchQRZ } from '../services/qrz';
 import { QSO } from '../types';
 
@@ -22,10 +22,20 @@ export default function NewQSO() {
   });
 
   useEffect(() => {
-    const backup = localStorage.getItem('basauri_logs_backup');
-    if (backup) {
-      setHistory(JSON.parse(backup).slice(0, 5));
+    async function loadHistory() {
+      try {
+        const data = await fetchLogs();
+        if (data && data.length > 0) {
+          setHistory(data.slice(0, 5));
+          return;
+        }
+      } catch {}
+      const backup = localStorage.getItem('basauri_logs_backup');
+      if (backup) {
+        setHistory(JSON.parse(backup).slice(0, 5));
+      }
     }
+    loadHistory();
   }, []);
 
   async function handleQRZSearch() {
@@ -172,17 +182,22 @@ export default function NewQSO() {
             </div>
             <div className="space-y-4">
               {history.length > 0 ? history.map((log, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
-                  <div>
-                    <p className="text-white font-display font-bold">{log.callsign}</p>
-                    <p className="text-[10px] text-muted font-mono uppercase">{log.band}</p>
+                <div key={i} className="p-3 rounded-lg bg-white/5 border border-white/5 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-white font-display font-bold">{log.callsign}</p>
+                      <p className="text-[10px] text-muted font-mono uppercase">{log.band}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-accent font-display">{log.rst}</p>
+                      <p className="text-[10px] text-muted font-mono">
+                        {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-accent font-display">{log.rst}</p>
-                    <p className="text-[10px] text-muted font-mono">
-                      {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
+                  {log.comment && (
+                    <p className="text-[10px] text-muted/80 font-mono truncate pt-1 border-t border-white/5">{log.comment}</p>
+                  )}
                 </div>
               )) : (
                 <p className="text-muted text-xs font-mono uppercase text-center py-4">No hay historial reciente</p>

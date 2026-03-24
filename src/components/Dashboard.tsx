@@ -37,18 +37,17 @@ export default function Dashboard() {
       className="space-y-8 pb-24"
     >
       {/* Hero Section */}
-      <section className="relative h-64 md:h-80 rounded-3xl overflow-hidden glass-panel border-none">
+      <section className="relative h-32 md:h-40 rounded-3xl overflow-hidden glass-panel border-none">
         <div className="absolute inset-0 bg-gradient-to-br from-accent/20 via-transparent to-tertiary/20" />
-        <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/radio/1920/1080?blur=10')] bg-cover bg-center opacity-30" />
         <div className="relative h-full flex flex-col justify-center px-8 md:px-12">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-            <span className="text-emerald-500 font-mono text-xs uppercase tracking-widest font-bold">ON AIR • LIVE SYSTEM</span>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+            <span className="text-emerald-500 font-mono text-[10px] uppercase tracking-widest font-bold">ON AIR • LIVE SYSTEM</span>
           </div>
-          <h1 className="text-5xl md:text-7xl font-display font-medium text-white tracking-tighter italic mb-2">
+          <h1 className="text-4xl md:text-5xl font-display font-medium text-white tracking-tighter italic mb-1">
             145.500 <span className="text-accent">MHz</span>
           </h1>
-          <p className="text-muted font-mono text-sm uppercase tracking-[0.2em]">
+          <p className="text-muted font-mono text-xs uppercase tracking-[0.2em]">
             VHF • FM • BASAURI TERMINAL • <span className="text-tertiary">IN83NE</span>
           </p>
         </div>
