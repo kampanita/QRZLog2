@@ -21,53 +21,88 @@ export default function Map() {
 
   async function fetchSolarData() {
     const SOLAR_URL = 'https://www.hamqsl.com/solarxml.php';
-    const proxies = [
-      (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-      (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    const CACHE_KEY = 'qrzlog_solar_cache';
+
+    // Strategy: allorigins /get (JSON wrapper) as primary, try direct /raw as backup
+    const strategies: Array<() => Promise<string | null>> = [
+      // allorigins JSON wrapper — most reliable
+      async () => {
+        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(SOLAR_URL)}`);
+        if (!res.ok) return null;
+        const json = await res.json();
+        return json?.contents || null;
+      },
+      // corsproxy.io
+      async () => {
+        const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(SOLAR_URL)}`);
+        if (!res.ok) return null;
+        return await res.text();
+      },
     ];
 
-    for (const makeUrl of proxies) {
+    for (const strategy of strategies) {
       try {
-        const res = await fetch(makeUrl(SOLAR_URL));
-        if (!res.ok) continue;
-        const text = await res.text();
-        if (!text || text.length < 100) continue;
+        const xml = await strategy();
+        if (!xml || xml.length < 100 || !xml.includes('solardata')) continue;
 
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(text, 'text/xml');
-        const solardata = doc.querySelector('solardata');
-        if (!solardata) continue;
-
-        const get = (tag: string) => solardata.querySelector(tag)?.textContent?.trim() || '--';
-        const conditions: {band: string, status: string}[] = [];
-
-        const dayNodes = solardata.querySelectorAll('calculatedconditions band[time="day"]');
-        dayNodes.forEach((node) => {
-          const name = node.getAttribute('name') || '';
-          const status = node.textContent?.trim() || '';
-          if (name && status) conditions.push({ band: name, status });
-        });
-
-        if (conditions.length === 0) {
-          ['80m-40m', '30m-20m', '17m-15m', '12m-10m', '6m-VHF'].forEach(b => conditions.push({ band: b, status: 'N/A' }));
+        const parsed = parseSolarXml(xml);
+        if (parsed) {
+          setSolarData(parsed);
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ ...parsed, ts: Date.now() }));
+          sysLog(`Solar data OK — SFI:${parsed.sfi} SN:${parsed.sn} A:${parsed.a} K:${parsed.k}`, 'success');
+          return;
         }
-
-        setSolarData({
-          sfi: get('solarflux'),
-          sn: get('sunspots'),
-          a: get('aindex'),
-          k: get('kindex'),
-          muf: get('muf') !== '--' ? get('muf') : get('calculatedmuf'),
-          xray: get('xray'),
-          conditions
-        });
-        sysLog(`Solar data OK — SFI:${get('solarflux')} SN:${get('sunspots')} A:${get('aindex')} K:${get('kindex')}`, 'success');
-        return; // success — stop trying proxies
       } catch (e) {
         sysLog('Solar proxy failed, trying next...', 'warn');
       }
     }
-    sysLog('All solar data proxies failed', 'error');
+
+    // Fallback: use cached data if available (max 6 hours)
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const data = JSON.parse(cached);
+        if (Date.now() - data.ts < 6 * 3600 * 1000) {
+          const { ts, ...rest } = data;
+          setSolarData(rest);
+          sysLog('Solar data loaded from cache', 'warn');
+          return;
+        }
+      }
+    } catch {}
+
+    sysLog('All solar data sources failed', 'error');
+  }
+
+  function parseSolarXml(xml: string) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xml, 'text/xml');
+    const solardata = doc.querySelector('solardata');
+    if (!solardata) return null;
+
+    const get = (tag: string) => solardata.querySelector(tag)?.textContent?.trim() || '--';
+    const conditions: {band: string, status: string}[] = [];
+
+    const dayNodes = solardata.querySelectorAll('calculatedconditions band[time="day"]');
+    dayNodes.forEach((node) => {
+      const name = node.getAttribute('name') || '';
+      const status = node.textContent?.trim() || '';
+      if (name && status) conditions.push({ band: name, status });
+    });
+
+    if (conditions.length === 0) {
+      ['80m-40m', '30m-20m', '17m-15m', '12m-10m', '6m-VHF'].forEach(b => conditions.push({ band: b, status: 'N/A' }));
+    }
+
+    return {
+      sfi: get('solarflux'),
+      sn: get('sunspots'),
+      a: get('aindex'),
+      k: get('kindex'),
+      muf: get('muf') !== '--' ? get('muf') : get('calculatedmuf'),
+      xray: get('xray'),
+      conditions
+    };
   }
 
   async function loadRecentLogs() {
