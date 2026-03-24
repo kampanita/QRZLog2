@@ -1,5 +1,11 @@
 import { DOMParser } from 'npm:@xmldom/xmldom@0.8.5';
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 // Simple XML -> JSON converter
 function xmlToJson(node: any): any {
   // element
@@ -42,6 +48,11 @@ function xmlToJson(node: any): any {
 const TARGET = 'https://www.hamqsl.com/solarxml.php';
 
 Deno.serve(async (req: Request) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: CORS_HEADERS });
+  }
+
   try {
     const url = new URL(req.url);
     // forward query params
@@ -52,7 +63,10 @@ Deno.serve(async (req: Request) => {
 
     const r = await fetch(fetchUrl, { method: 'GET', headers: { 'Accept': 'application/xml' } });
     if (!r.ok) {
-      return new Response(JSON.stringify({ error: 'Upstream fetch failed', status: r.status }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'Upstream fetch failed', status: r.status }), {
+        status: 502,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
     }
 
     const text = await r.text();
@@ -63,12 +77,15 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify(json), {
       status: 200,
       headers: {
+        ...CORS_HEADERS,
         'Content-Type': 'application/json',
         'Cache-Control': cacheControl,
-        'Connection': 'keep-alive',
       },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: String(err) }), {
+      status: 500,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
   }
 });
