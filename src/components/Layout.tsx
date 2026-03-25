@@ -90,8 +90,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="max-w-7xl mx-auto py-8 md:py-12">
           {children}
         </div>
-      </main>
 
+      </main>
+      
+      
       {/* Mobile Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 glass-panel border-none rounded-none border-t border-white/5 z-50 px-2 py-2 flex items-center gap-1 overflow-x-auto scrollbar-hide">
         {NAV_ITEMS.map((item) => (
