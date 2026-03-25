@@ -23,16 +23,10 @@ export default function Map() {
     const SOLAR_URL = 'https://www.hamqsl.com/solarxml.php';
     const CACHE_KEY = 'qrzlog_solar_cache';
     const SB_URL = 'https://svcakitmimdhltwcmadd.supabase.co';
-    const SB_KEY = 'sb_publishable_uR_yVZpJ2wOkUD0bihyGBg_E__lJACJ';
 
-    // Strategy 1: Supabase Edge Function (returns JSON)
+    // Strategy 1: Supabase Edge Function (returns JSON, no-verify-jwt)
     try {
-      const res = await fetch(`${SB_URL}/functions/v1/solar-proxy`, {
-        headers: {
-          'Authorization': `Bearer ${SB_KEY}`,
-          'apikey': SB_KEY,
-        },
-      });
+      const res = await fetch(`${SB_URL}/functions/v1/solar-proxy`);
       if (res.ok) {
         const json = await res.json();
         const parsed = parseSolarJson(json);
@@ -189,6 +183,7 @@ export default function Map() {
     const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, alpha: true, antialias: true });
     renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.localClippingEnabled = true;
 
     const globeGroup = new THREE.Group();
     scene.add(globeGroup);
@@ -196,12 +191,12 @@ export default function Map() {
     // Main Sphere
     const geometry = new THREE.SphereGeometry(5, 64, 64);
     const material = new THREE.MeshPhongMaterial({ 
-      color: 0x1e293b,
+      color: 0x1a2332,
       emissive: 0x0ea5e9,
-      emissiveIntensity: 0.2,
-      shininess: 50,
+      emissiveIntensity: 0.06,
+      shininess: 80,
       transparent: true,
-      opacity: 0.9
+      opacity: 0.95
     });
     const globe = new THREE.Mesh(geometry, material);
     globeGroup.add(globe);
@@ -228,18 +223,153 @@ export default function Map() {
     const atmos = new THREE.Mesh(atmosGeom, atmosMat);
     globeGroup.add(atmos);
 
-    // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
-    const pointLight = new THREE.PointLight(0xffffff, 1);
-    pointLight.position.set(15, 15, 15);
-    scene.add(pointLight);
+    // --- Helpers ---
+    const R = 5.06;
+    const latLonToVec3 = (lat: number, lon: number, r: number) => {
+      const phi = (90 - lat) * Math.PI / 180;
+      const theta = (lon + 180) * Math.PI / 180;
+      return new THREE.Vector3(-r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
+    };
+
+    // --- Solar Position (UTC) ---
+    const now = new Date();
+    const doy = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000);
+    const decl = -23.45 * Math.cos(2 * Math.PI / 365 * (doy + 10));
+    const utcH = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
+    const subSunLon = (12 - utcH) * 15;
+    const sunDir = latLonToVec3(decl, subSunLon, 1).normalize();
+
+    // --- Sun-based Lighting ---
+    scene.add(new THREE.AmbientLight(0x112244, 0.3));
+    const sunLight = new THREE.DirectionalLight(0xfff4e0, 1.6);
+    sunLight.position.copy(sunDir.clone().multiplyScalar(20));
+    scene.add(sunLight);
+    const fillLight = new THREE.DirectionalLight(0x334466, 0.15);
+    fillLight.position.copy(sunDir.clone().negate().multiplyScalar(20));
+    scene.add(fillLight);
+
+    // --- Continent Outlines [lat, lon] ---
+    const COASTS: [number, number][][] = [
+      [[37,-10],[36,5],[44,5],[48,-5],[51,2],[55,12],[60,25],[70,30],[64,10]],
+      [[15,-17],[36,-5],[37,10],[30,35],[2,50],[-15,40],[-35,18],[-5,10],[15,-17]],
+      [[30,35],[25,50],[35,70],[22,90],[10,105],[23,120],[40,140],[45,145],[68,100],[70,60],[60,30],[42,35],[30,35]],
+      [[65,-170],[60,-140],[50,-125],[35,-120],[25,-100],[25,-80],[35,-75],[45,-65],[47,-55],[60,-65],[68,-95],[65,-170]],
+      [[10,-80],[5,-60],[-5,-35],[-23,-40],[-34,-55],[-55,-70],[-40,-75],[-18,-70],[0,-80],[10,-80]],
+      [[-35,115],[-18,120],[-12,135],[-18,148],[-28,154],[-37,150],[-33,130],[-35,115]],
+    ];
+    const coastMat = new THREE.LineBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.6 });
+    COASTS.forEach(c => {
+      const pts = c.map(([la, lo]) => latLonToVec3(la, lo, R));
+      globeGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), coastMat));
+    });
+
+    // --- Grid Lines ---
+    [0, 23.5, -23.5, 66.5, -66.5].forEach(lat => {
+      const pts: THREE.Vector3[] = [];
+      for (let lo = -180; lo <= 180; lo += 5) pts.push(latLonToVec3(lat, lo, R));
+      const mat = new THREE.LineBasicMaterial({ color: 0x0ea5e9, transparent: true, opacity: lat === 0 ? 0.35 : 0.12 });
+      globeGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+    });
+
+    // --- Home QTH (EA2 — Basque Country) ---
+    const homePos = latLonToVec3(43.3, -2.9, 5.12);
+    const homeDot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.12, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0x10b981 })
+    );
+    homeDot.position.copy(homePos);
+    globeGroup.add(homeDot);
+
+    const homeRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.15, 0.3, 32),
+      new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.4, side: THREE.DoubleSide })
+    );
+    homeRing.position.copy(homePos);
+    homeRing.lookAt(0, 0, 0);
+    globeGroup.add(homeRing);
+
+    // --- QSO Markers ---
+    const locToLL = (loc: string): [number, number] | null => {
+      if (!loc || loc.length < 4) return null;
+      const L = loc.toUpperCase();
+      const a = L.charCodeAt(0), b = L.charCodeAt(1);
+      if (a < 65 || a > 82 || b < 65 || b > 82) return null;
+      const n2 = parseInt(L[2]), n3 = parseInt(L[3]);
+      if (isNaN(n2) || isNaN(n3)) return null;
+      return [(b - 65) * 10 - 90 + n3 + 0.5, (a - 65) * 20 - 180 + n2 * 2 + 1];
+    };
+    const qsoMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+    const arcMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.25 });
+    logs.forEach(log => {
+      const ll = locToLL(log.locator || log.grid || '');
+      if (!ll) return;
+      const pos = latLonToVec3(ll[0], ll[1], 5.12);
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 12), qsoMat);
+      dot.position.copy(pos);
+      globeGroup.add(dot);
+      const arcPts: THREE.Vector3[] = [];
+      for (let t = 0; t <= 1; t += 0.05) {
+        const p = new THREE.Vector3().lerpVectors(homePos, pos, t);
+        p.normalize().multiplyScalar(5.12 + Math.sin(t * Math.PI) * 1.5);
+        arcPts.push(p);
+      }
+      globeGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(arcPts), arcMat));
+    });
+
+    // --- Solar Terminator / Grey Line (scene space — fixed while globe rotates) ---
+    const tUp = Math.abs(sunDir.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+    const tg1 = new THREE.Vector3().crossVectors(sunDir, tUp).normalize();
+    const tg2 = new THREE.Vector3().crossVectors(sunDir, tg1).normalize();
+    const termPts: THREE.Vector3[] = [];
+    const greyA: THREE.Vector3[] = [];
+    const greyB: THREE.Vector3[] = [];
+    for (let i = 0; i <= 128; i++) {
+      const ang = (i / 128) * Math.PI * 2;
+      const cs = Math.cos(ang), sn = Math.sin(ang);
+      termPts.push(new THREE.Vector3().addScaledVector(tg1, cs).addScaledVector(tg2, sn).multiplyScalar(5.08));
+      const gA = new THREE.Vector3().addScaledVector(tg1, cs).addScaledVector(tg2, sn).addScaledVector(sunDir, 0.09);
+      greyA.push(gA.normalize().multiplyScalar(5.08));
+      const gB = new THREE.Vector3().addScaledVector(tg1, cs).addScaledVector(tg2, sn).addScaledVector(sunDir, -0.09);
+      greyB.push(gB.normalize().multiplyScalar(5.08));
+    }
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(termPts),
+      new THREE.LineBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.8 })));
+    const greyMat = new THREE.LineBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.15 });
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(greyA), greyMat));
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(greyB), greyMat));
+
+    // --- Night Hemisphere (dark overlay, clipped to shadow side) ---
+    scene.add(new THREE.Mesh(
+      new THREE.SphereGeometry(5.04, 64, 64),
+      new THREE.MeshBasicMaterial({
+        color: 0x000015, transparent: true, opacity: 0.4,
+        side: THREE.FrontSide,
+        clippingPlanes: [new THREE.Plane(sunDir.clone().negate(), 0)],
+      })
+    ));
+
+    // --- Sun Position Marker ---
+    const sunMkPos = sunDir.clone().multiplyScalar(5.15);
+    const sunMarker = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), new THREE.MeshBasicMaterial({ color: 0xfbbf24 }));
+    sunMarker.position.copy(sunMkPos);
+    scene.add(sunMarker);
+    const sunGlow = new THREE.Mesh(
+      new THREE.SphereGeometry(0.35, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.15 })
+    );
+    sunGlow.position.copy(sunMkPos);
+    scene.add(sunGlow);
 
     camera.position.z = 15;
 
+    let frameId = 0;
     const animate = () => {
-      const frame = requestAnimationFrame(animate);
+      frameId = requestAnimationFrame(animate);
       globeGroup.rotation.y += 0.001;
+      const tm = Date.now() * 0.001;
+      homeRing.scale.setScalar(1 + 0.3 * Math.sin(tm * 2));
+      (homeRing.material as THREE.MeshBasicMaterial).opacity = 0.2 + 0.2 * Math.sin(tm * 2);
+      sunGlow.scale.setScalar(1 + 0.15 * Math.sin(tm * 3));
       renderer.render(scene, camera);
     };
 
@@ -253,8 +383,12 @@ export default function Map() {
     };
 
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [activeTab]);
+    return () => {
+      cancelAnimationFrame(frameId);
+      window.removeEventListener('resize', handleResize);
+      renderer.dispose();
+    };
+  }, [activeTab, logs]);
 
   return (
     <motion.div
